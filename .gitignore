@@ -1,0 +1,26 @@
+# Python / venv
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data and model (don't push raw datasets or big binary models unless you want)
+data/raw/
+data/*.csv
+models/*.pkl
+
+# logs
+*.log
+
+# local secrets
+.env
+secrets.json
