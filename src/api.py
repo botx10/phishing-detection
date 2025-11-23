@@ -57,24 +57,31 @@ def set_secure_headers(response):
     response.headers.setdefault('X-Frame-Options', 'DENY')
     return response
 
-# ---------------- Load Kaggle columns ----------------
-expected_cols = None
-label_col = None
+# ---------------- Load Kaggle columns & feature extractor ----------------
 try:
+    import kaggle_features
     from kaggle_features import load_kaggle_columns, extract_kaggle_features
-    log("DEBUG: imported kaggle_features")
-    # Attempt to load columns file from repo path (works locally and on Render)
-    kaggle_csv = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "raw", "kaggle_phish.csv")
-    if not os.path.exists(kaggle_csv):
-        # fallback to relative path used earlier
-        kaggle_csv = "../data/raw/kaggle_phish.csv"
-    expected_cols, label_col = load_kaggle_columns(kaggle_csv)
+
+    log("DEBUG: imported kaggle_features (SECOND ATTEMPT)")
+
+    # Build absolute path to Kaggle CSV — works locally and on Render
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    KAGGLE_CSV = os.path.join(BASE_DIR, "data", "raw", "kaggle_phish.csv")
+
+    log(f"DEBUG: checking if Kaggle CSV exists at: {KAGGLE_CSV}")
+    log(f"DEBUG: Kaggle CSV exists? {os.path.exists(KAGGLE_CSV)}")
+
+    expected_cols, label_col = load_kaggle_columns(KAGGLE_CSV)
+
     log(f"API: expecting features: {len(expected_cols)} features")
+
 except Exception:
-    log("ERROR loading kaggle columns:")
+    log("ERROR importing kaggle_features or loading kaggle columns:")
     traceback.print_exc()
+    extract_kaggle_features = None   # ensure defined
     expected_cols = None
     label_col = None
+
 
 # ---------------- Load model (robust path resolution + debug) ----------------
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # project root (one level above src/)
