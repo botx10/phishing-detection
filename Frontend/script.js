@@ -1,11 +1,8 @@
 // ========== CONFIG ==========
-// For LOCAL testing
-const API_URL = "http://127.0.0.1:5000/predict";
-const API_KEY = "";  // leave empty for local
+// For DEPLOYED backend (Render)
+const API_URL = "https://phishguard-w4m8.onrender.com/predict";
+const API_KEY = ""; // or "YOUR_SECRET_API_KEY" if you set one on Render
 
-// For deployment, change to:
-// const API_URL = "https://your-backend.onrender.com/predict";
-// const API_KEY = "YOUR_SECRET_API_KEY";
 
 
 // DOM
