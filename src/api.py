@@ -1,4 +1,4 @@
-# src/api.py (WHOIS-enabled, CORS, API-key, rate-limited) - updated
+# src/api.py (WHOIS-enabled, CORS, API-key, rate-limited) - robust import + runtime guard
 import os
 import time
 import sys
@@ -22,12 +22,10 @@ app = Flask(__name__)
 
 # FRONTEND_ORIGIN: comma-separated list allowed, or default localhost for dev
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://127.0.0.1:8000")
-# if user set "*" explicitly, allow all origins
 if FRONTEND_ORIGIN.strip() == "*":
     CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=False,
          allow_headers=["Content-Type", "x-api-key", "Authorization", "X-Requested-With"])
 else:
-    # allow multiple origins if provided as comma-separated
     allowed = [o.strip() for o in FRONTEND_ORIGIN.split(",") if o.strip()]
     CORS(app, resources={r"/*": {"origins": allowed}}, supports_credentials=False,
          allow_headers=["Content-Type", "x-api-key", "Authorization", "X-Requested-With"])
@@ -57,31 +55,27 @@ def set_secure_headers(response):
     response.headers.setdefault('X-Frame-Options', 'DENY')
     return response
 
-# ---------------- Load Kaggle columns & feature extractor ----------------
+# ---------------- Load Kaggle columns & attempt import of feature extractor ----------------
+expected_cols = None
+label_col = None
+extract_kaggle_features = None
 try:
-    import kaggle_features
-    from kaggle_features import load_kaggle_columns, extract_kaggle_features
-
-    log("DEBUG: imported kaggle_features (SECOND ATTEMPT)")
-
-    # Build absolute path to Kaggle CSV — works locally and on Render
+    # try to import the module and load columns using an absolute path (robust on Render)
+    from kaggle_features import load_kaggle_columns, extract_kaggle_features as _extract_kf
+    extract_kaggle_features = _extract_kf
+    log("DEBUG: imported kaggle_features (initial)")
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    KAGGLE_CSV = os.path.join(BASE_DIR, "data", "raw", "kaggle_phish.csv")
-
-    log(f"DEBUG: checking if Kaggle CSV exists at: {KAGGLE_CSV}")
-    log(f"DEBUG: Kaggle CSV exists? {os.path.exists(KAGGLE_CSV)}")
-
-    expected_cols, label_col = load_kaggle_columns(KAGGLE_CSV)
-
+    kaggle_csv = os.path.join(BASE_DIR, "data", "raw", "kaggle_phish.csv")
+    log(f"DEBUG: checking Kaggle CSV at: {kaggle_csv} (exists? {os.path.exists(kaggle_csv)})")
+    expected_cols, label_col = load_kaggle_columns(kaggle_csv)
     log(f"API: expecting features: {len(expected_cols)} features")
-
 except Exception:
-    log("ERROR importing kaggle_features or loading kaggle columns:")
+    # don't crash here; we'll try again at runtime if needed
+    log("WARN: initial import/load of kaggle_features failed (will retry at request-time)")
     traceback.print_exc()
-    extract_kaggle_features = None   # ensure defined
+    extract_kaggle_features = None
     expected_cols = None
     label_col = None
-
 
 # ---------------- Load model (robust path resolution + debug) ----------------
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # project root (one level above src/)
@@ -131,6 +125,26 @@ def predict():
     if model is None:
         return jsonify({'error': 'Model not loaded'}), 500
 
+    # Ensure feature extractor is available: try importing at runtime if initial import failed
+    global extract_kaggle_features, expected_cols
+    if extract_kaggle_features is None:
+        try:
+            log("DEBUG: runtime attempt to import kaggle_features.extract_kaggle_features")
+            from kaggle_features import extract_kaggle_features as _extract_kf, load_kaggle_columns as _load_cols
+            extract_kaggle_features = _extract_kf
+            # attempt to reload expected_cols if missing
+            if expected_cols is None:
+                BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                kaggle_csv = os.path.join(BASE_DIR, "data", "raw", "kaggle_phish.csv")
+                if os.path.exists(kaggle_csv):
+                    expected_cols, label_col = _load_cols(kaggle_csv)
+                    log(f"DEBUG: runtime loaded expected_cols length: {len(expected_cols)}")
+        except Exception:
+            log("ERROR: runtime import of kaggle_features failed")
+            traceback.print_exc()
+            # Informative error for caller (do not call None)
+            return jsonify({'error': 'Feature extractor not available on server (kaggle_features import failed)'}), 500
+
     try:
         data = request.get_json() or {}
         url = data.get('url', '')
@@ -144,7 +158,6 @@ def predict():
         if expected_cols:
             df = pd.DataFrame([feats], columns=expected_cols)
         else:
-            # fallback if we couldn't load kaggle columns: build from dict keys
             df = pd.DataFrame([feats])
 
         # safe numeric defaults
@@ -181,7 +194,6 @@ if __name__ == '__main__':
     log("DEBUG: entering app.run()")
     try:
         port = int(os.getenv("PORT", "5000"))
-        # host 0.0.0.0 so Render / Gunicorn can bind correctly
         app.run(host='0.0.0.0', port=port, debug=False)
     except Exception:
         log("ERROR running Flask:")
