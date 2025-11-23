@@ -1,4 +1,4 @@
-# src/api.py (WHOIS-enabled, CORS, API-key, rate-limited)
+# src/api.py (WHOIS-enabled, CORS, API-key, rate-limited) - updated
 import os
 import time
 import sys
@@ -20,11 +20,17 @@ def log(msg):
 # ---------------- Flask app ----------------
 app = Flask(__name__)
 
-# CORS: allow only the frontend origin (set FRONTEND_ORIGIN env var). For local dev you can set to http://127.0.0.1:8000
+# FRONTEND_ORIGIN: comma-separated list allowed, or default localhost for dev
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://127.0.0.1:8000")
-CORS(app, resources={r"/*": {"origins": FRONTEND_ORIGIN}},
-     supports_credentials=False,
-     allow_headers=["Content-Type", "x-api-key", "Authorization", "X-Requested-With"])
+# if user set "*" explicitly, allow all origins
+if FRONTEND_ORIGIN.strip() == "*":
+    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=False,
+         allow_headers=["Content-Type", "x-api-key", "Authorization", "X-Requested-With"])
+else:
+    # allow multiple origins if provided as comma-separated
+    allowed = [o.strip() for o in FRONTEND_ORIGIN.split(",") if o.strip()]
+    CORS(app, resources={r"/*": {"origins": allowed}}, supports_credentials=False,
+         allow_headers=["Content-Type", "x-api-key", "Authorization", "X-Requested-With"])
 
 # Rate limiter (per-IP). Adjust limits as needed.
 limiter = Limiter(
@@ -32,7 +38,6 @@ limiter = Limiter(
     default_limits=["60 per minute"]
 )
 limiter.init_app(app)
-
 
 # API key from environment (optional but recommended)
 API_KEY = os.getenv("API_KEY", None)
@@ -52,13 +57,18 @@ def set_secure_headers(response):
     response.headers.setdefault('X-Frame-Options', 'DENY')
     return response
 
-# ---------------- Load Kaggle columns & model ----------------
+# ---------------- Load Kaggle columns ----------------
 expected_cols = None
 label_col = None
 try:
     from kaggle_features import load_kaggle_columns, extract_kaggle_features
     log("DEBUG: imported kaggle_features")
-    expected_cols, label_col = load_kaggle_columns("../data/raw/kaggle_phish.csv")
+    # Attempt to load columns file from repo path (works locally and on Render)
+    kaggle_csv = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "raw", "kaggle_phish.csv")
+    if not os.path.exists(kaggle_csv):
+        # fallback to relative path used earlier
+        kaggle_csv = "../data/raw/kaggle_phish.csv"
+    expected_cols, label_col = load_kaggle_columns(kaggle_csv)
     log(f"API: expecting features: {len(expected_cols)} features")
 except Exception:
     log("ERROR loading kaggle columns:")
@@ -66,9 +76,15 @@ except Exception:
     expected_cols = None
     label_col = None
 
-MODEL_PATH = "../models/phish_model_kaggle.pkl"
+# ---------------- Load model (robust path resolution + debug) ----------------
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # project root (one level above src/)
+MODEL_PATH = os.environ.get("MODEL_PATH", os.path.join(BASE_DIR, "models", "phish_model_kaggle.pkl"))
+
 model = None
 try:
+    log(f"DEBUG: resolved MODEL_PATH = {MODEL_PATH}")
+    log(f"DEBUG: current working dir = {os.getcwd()}")
+    log(f"DEBUG: model file exists? {os.path.exists(MODEL_PATH)}")
     log(f"DEBUG: loading model from {MODEL_PATH} ...")
     start = time.time()
     model = joblib.load(MODEL_PATH)
@@ -91,9 +107,17 @@ except Exception:
 def home():
     return "Phishing Detection API is running!"
 
-@app.route('/predict', methods=['POST'])
+# Allow GET for convenience (returns info) and POST for actual prediction
+@app.route('/predict', methods=['GET', 'POST'])
 @limiter.limit("30 per minute")
 def predict():
+    if request.method == 'GET':
+        return jsonify({
+            "info": "Send a POST request with JSON: {\"url\":\"https://example.com\"} to this endpoint.",
+            "note": "POSTs require 'Content-Type: application/json'. If API_KEY is configured, include header 'x-api-key'."
+        }), 200
+
+    # POST handling below
     # enforce API key if configured
     require_api_key()
 
@@ -131,7 +155,6 @@ def predict():
             try:
                 contribs = explain_instance(df) or []
             except Exception:
-                # swallow explain errors to keep API robust
                 log("WARN: explain_instance failed")
                 traceback.print_exc()
 
