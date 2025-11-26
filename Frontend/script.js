@@ -1,11 +1,11 @@
 // ========== CONFIG ==========
 // For DEPLOYED backend (Render)
-// const API_URL = "https://phishguard-w4m8.onrender.com/predict";
-// const API_KEY = ""; // or "YOUR_SECRET_API_KEY" if you set one on Render
+const API_URL = "https://phishing-detection-k2kh.onrender.com/predict";
+const API_KEY = ""; // or "YOUR_SECRET_API_KEY" if you set one on Render
 
-// For LOCAL backend
-const API_URL = "http://127.0.0.1:5000/predict";
-const API_KEY = ""; // or "YOUR_SECRET_API_KEY" if you set one on your local server
+// // For LOCAL backend
+// const API_URL = "http://127.0.0.1:5000/predict";
+// const API_KEY = ""; // or "YOUR_SECRET_API_KEY" if you set one on your local server
 
 
 // DOM
