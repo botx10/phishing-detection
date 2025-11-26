@@ -46,12 +46,13 @@ CORS(app, resources={r"/*": {"origins": FRONTEND_ORIGIN}},
      allow_headers=["Content-Type", "x-api-key", "Authorization", "X-Requested-With"])
 
 # Rate limiter (per-IP). Adjust limits as needed.
-# Initialize with the app so it's active immediately.
+# Flask-Limiter v3+ syntax
 limiter = Limiter(
-    app,
     key_func=get_remote_address,
     default_limits=["60 per minute"]
 )
+limiter.init_app(app)
+
 
 # API key from environment (optional but recommended)
 API_KEY = os.getenv("API_KEY", None)
