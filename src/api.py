@@ -1,4 +1,4 @@
-# src/api.py (WHOIS-enabled, CORS, API-key, rate-limited) - patched version
+# src/api.py (WHOIS-enabled, CORS, API-key, rate-limited) - with SHAP fallback to feature_importances_
 import os
 import time
 import sys
@@ -205,20 +205,44 @@ def predict():
 
         label = "Phishing" if pred == 1 else "Legitimate"
 
-        # Explain (if available)
+        # ---------------- Explain (if available) with fallback ----------------
         contribs = []
+        # Try shap-based explanations first (if shap_utils.explain_instance is available)
         if explain_instance:
             try:
                 contribs = explain_instance(df) or []
             except Exception:
                 log("WARN: explain_instance failed")
                 traceback.print_exc()
+                contribs = []
+
+        # Fallback: if SHAP not available or returned empty, try model.feature_importances_
+        if (not contribs or len(contribs) == 0) and hasattr(model, "feature_importances_"):
+            try:
+                import numpy as np
+                cols = list(df.columns)
+                fi = getattr(model, "feature_importances_", None)
+                if fi is not None:
+                    fi = np.array(fi)
+                    # If feature_importances_ length matches columns, pair them
+                    if fi.shape[0] == len(cols):
+                        pairs = sorted(zip(cols, fi.tolist()), key=lambda x: abs(x[1]), reverse=True)
+                    else:
+                        # if sizes mismatch, try to use first-n
+                        pairs = sorted(zip(cols, fi[:len(cols)].tolist()), key=lambda x: abs(x[1]), reverse=True)
+                    contribs = [{"feature": name, "contribution": float(val)} for name, val in pairs[:12]]
+                    log("DEBUG: using feature_importances_ fallback for top_contributions")
+            except Exception:
+                log("WARN: feature_importances_ fallback failed")
+                traceback.print_exc()
+
+        # If still empty, contribs will be empty list (frontend will show "No contributions")
 
         response = {
             'url': url,
             'prediction': label,
             'confidence': round(prob, 3) if prob is not None else None,
-            'top_contributions': contribs[:6]
+            'top_contributions': contribs[:6] if isinstance(contribs, list) else []
         }
         return jsonify(response), 200
 
