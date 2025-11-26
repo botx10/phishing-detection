@@ -165,3 +165,62 @@ footer{
         flex-direction:column;
     }
 }
+
+/* ----- Contribution list improvements ----- */
+.feature-list {
+    list-style: none;
+    padding: 0.4rem;
+    margin: 0;
+    max-height: 260px;
+    overflow-y: auto;
+    width: 100%;
+    display: block;
+}
+
+/* Each contribution row (improves spacing and visibility) */
+.feature-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 6px;
+    border-bottom: 1px solid #f1f3f5;
+    gap: 12px;
+    background: transparent;
+    white-space: nowrap;
+}
+
+/* Feature name (left) */
+.feature-list li div:first-child {
+    font-size: 0.95rem;
+    font-weight: 600;
+    max-width: 70%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* contribution value (right) */
+.feature-list li div.muted,
+.feature-list li div:last-child {
+    font-size: 0.9rem;
+    color: var(--muted);
+    min-width: 70px;
+    text-align: right;
+}
+
+/* Ensure results area keeps a comfortable height and doesn't collapse */
+.results {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.results .box {
+    min-width: 220px;
+    flex: 1 1 48%;
+}
+
+/* responsive tweak */
+@media (max-width: 800px) {
+    .results { flex-direction: column; }
+    .results .box { flex-basis: auto; width: 100%; }
+}
