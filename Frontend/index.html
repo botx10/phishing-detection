@@ -12,7 +12,9 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
   <div class="app">
+
     <header class="topbar">
       <div class="brand">
         <div class="logo" aria-hidden="true">🔒</div>
@@ -28,6 +30,7 @@
     </header>
 
     <main class="container">
+      <!-- LEFT: input + history (always visible) -->
       <section class="panel left-card">
         <label class="label">URL to scan</label>
         <input id="url" type="url" placeholder="https://example.com/login" autocomplete="off" />
@@ -36,7 +39,7 @@
           <button id="sample" class="btn ghost">Try sample</button>
         </div>
 
-        <div id="msg" class="muted small"></div>
+        <div id="msg" class="muted small" aria-live="polite"></div>
 
         <hr class="divider" />
 
@@ -44,34 +47,43 @@
         <div id="history" class="history"></div>
       </section>
 
-      <section class="panel right-card">
-        <div class="result-header">
-          <div>
-            <div id="resultLabel" class="result-title">No result yet</div>
-            <div id="confidence" class="muted small">Confidence: —</div>
-          </div>
-          <div id="busy" style="visibility:hidden"><span class="spinner"></span></div>
-        </div>
-
-        <hr class="divider" />
-
-        <div class="result-grid">
-          <div class="contrib-box">
-            <div class="box-title small muted">Top contributions</div>
-            <ul id="contrib" class="feature-list"></ul>
-          </div>
-
-          <div class="raw-box">
-            <div class="box-title small muted">Raw response</div>
-            <pre id="raw" class="json">No response yet.</pre>
-          </div>
-        </div>
+      <!-- Right column removed from initial view; results appear in modal/popout -->
+      <section class="panel right-card" id="rightCard" style="display:none">
+        <!-- kept for accessibility but hidden; modal will be used instead -->
       </section>
     </main>
 
     <footer class="footer muted small">
       © PhishGuard — URL Safety Scanner. Developed by Aryaman Menon
     </footer>
+  </div>
+
+  <!-- Modal / popout result -->
+  <div id="resultModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-header">
+        <div>
+          <div id="modalTitle" class="modal-title">Result</div>
+          <div id="modalConfidence" class="muted small">Confidence: —</div>
+        </div>
+        <div class="modal-actions">
+          <button id="modalClose" class="btn ghost">Close</button>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <div class="modal-left">
+          <div class="box-title small muted">Top contributions</div>
+          <ul id="modalContrib" class="feature-list"></ul>
+        </div>
+
+        <div class="modal-right">
+          <div class="box-title small muted">Raw response</div>
+          <pre id="modalRaw" class="json">No response yet.</pre>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="script.js"></script>
