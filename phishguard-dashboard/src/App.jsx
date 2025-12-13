@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { FEATURE_EXPLANATIONS } from "./featureExplanations";
 
 export default function App() {
   const [url, setUrl] = useState("");
@@ -8,6 +9,7 @@ export default function App() {
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedFeature, setSelectedFeature] = useState(null);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -69,6 +71,12 @@ export default function App() {
   const confidencePct = result?.confidence
     ? Math.round(result.confidence * 100)
     : 0;
+
+  const getConfidenceLabel = (pct) => {
+    if (pct <= 40) return "Low";
+    if (pct <= 70) return "Medium";
+    return "High";
+  };
 
   return (
     <motion.div
@@ -368,6 +376,10 @@ export default function App() {
             {loading ? "Scanning..." : "Scan URL"}
           </motion.button>
 
+          <p className="text-xs text-neutral-500 mt-2 text-center">
+            Scan results are based on machine-learning analysis.
+          </p>
+
           <motion.button
             onClick={() => setShowHistory(true)}
             whileHover={{ scale: 1.05 }}
@@ -405,9 +417,17 @@ export default function App() {
                 {isPhishing ? "🚨 PHISHING DETECTED" : "✅ LEGITIMATE URL"}
               </div>
 
+              {/* Risk Summary */}
+              <p className="text-sm text-neutral-300 mb-3">
+                {isPhishing
+                  ? "This URL shows multiple patterns commonly associated with phishing attacks."
+                  : "This URL does not exhibit strong indicators of phishing behavior."
+                }
+              </p>
+
               {/* Confidence */}
               <p className="text-sm mb-2 text-neutral-400">
-                Confidence: {confidencePct}%
+                Confidence: {confidencePct}% ({getConfidenceLabel(confidencePct)})
               </p>
               <div className="w-full h-2 bg-neutral-800 rounded-full mb-4">
                 <motion.div
@@ -423,9 +443,12 @@ export default function App() {
               {/* Contributions */}
               {result.top_contributions?.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold mb-2">
-                    Top Risk Indicators
+                  <h3 className="text-sm font-semibold mb-1">
+                    Why this URL looks risky
                   </h3>
+                  <p className="text-xs text-neutral-500 mb-3">
+                    These are the most influential patterns identified by the detection model.
+                  </p>
                   <ul className="space-y-2 text-sm">
                     {result.top_contributions.map((item, i) => (
                       <li
@@ -433,8 +456,15 @@ export default function App() {
                         className="flex justify-between bg-neutral-800 px-3 py-2 rounded-lg"
                       >
                         <span>{item.feature}</span>
-                        <span className="text-neutral-400">
+                        <span className="text-neutral-400 flex items-center gap-1">
                           {(item.contribution * 100).toFixed(2)}%
+                          <span
+                            className="text-xs hover:text-blue-400 transition-colors cursor-pointer"
+                            onClick={() => setSelectedFeature(item.feature)}
+                            title="Click for more info"
+                          >
+                            ℹ️
+                          </span>
                         </span>
                       </li>
                     ))}
@@ -457,7 +487,10 @@ export default function App() {
             className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
           >
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-lg p-6">
-            <h2 className="font-semibold mb-4">Scan History</h2>
+            <h2 className="font-semibold mb-2">Scan History</h2>
+            <p className="text-xs text-neutral-500 mb-4">
+              Scan history is stored locally for this session only.
+            </p>
 
             {history.length === 0 && (
               <p className="text-sm text-neutral-500">
@@ -496,6 +529,39 @@ export default function App() {
           </div>
         </motion.div>
       )}
+      </AnimatePresence>
+
+      {/* Feature Explanation Modal */}
+      <AnimatePresence>
+        {selectedFeature && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+          >
+            <motion.div
+              className="bg-neutral-900 border border-neutral-800 rounded-xl w-full max-w-md p-6"
+              initial={{ y: 20 }}
+              animate={{ y: 0 }}
+              exit={{ y: 20 }}
+            >
+              <h3 className="font-semibold mb-3 text-lg">{selectedFeature}</h3>
+              <p className="text-neutral-300 mb-4 leading-relaxed">
+                {FEATURE_EXPLANATIONS[selectedFeature] || FEATURE_EXPLANATIONS.__default__}
+              </p>
+              <motion.button
+                onClick={() => setSelectedFeature(null)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-700 transition"
+              >
+                Close
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       <motion.footer variants={itemVariants} className="mt-16 bg-neutral-900/50 border-t border-neutral-800 rounded-t-xl p-8">
