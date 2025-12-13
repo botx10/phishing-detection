@@ -40,7 +40,7 @@ app = Flask(__name__)
 
 # CORS: allow only the frontend origin (set FRONTEND_ORIGIN env var).
 # For local dev set FRONTEND_ORIGIN to e.g. http://127.0.0.1:8000 or http://localhost:3000
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://127.0.0.1:8000")
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 CORS(app, resources={r"/*": {"origins": FRONTEND_ORIGIN}},
      supports_credentials=False,
      allow_headers=["Content-Type", "x-api-key", "Authorization", "X-Requested-With"])
@@ -261,3 +261,10 @@ if __name__ == '__main__':
     except Exception:
         log("ERROR running Flask:")
         traceback.print_exc()
+
+@app.after_request
+def add_cors(response):
+    response.headers["Access-Control-Allow-Origin"] = FRONTEND_ORIGIN
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, x-api-key"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    return response
