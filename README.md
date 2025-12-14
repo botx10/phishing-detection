@@ -11,6 +11,21 @@ It combines machine learning with explainable AI techniques to help users unders
 - **Backend API:** https://phishing-detection-k2kh.onrender.com
 
 ---
+## 🖼️ Dashboard Preview
+
+### Home & Overview
+![Home](screenshots/home.png)
+
+### Legitimate URL Detection
+![Legitimate](screenshots/legit-result.png)
+
+### Phishing URL Detection
+![Phishing](screenshots/phishing-result.png)
+
+### Explainable AI – Risk Indicator Explanation
+![Explanation](screenshots/feature-explanation.png)
+
+---
 
 ## 🧠 What Does PhishGuard Do?
 
